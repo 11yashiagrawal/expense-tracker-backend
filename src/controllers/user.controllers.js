@@ -27,14 +27,14 @@ const registerUser = asyncHandler(async (req, res) => {
 
   // email, phone number valid
 
-  const emailPattern = "/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/";
-  if (!emailPattern.test(email) || length(phone_no.trim()) !== 10) {
+  const emailPattern = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+  if (!emailPattern.test(email) || phone_no.trim().length !== 10) {
     throw new ApiError(400, "Invalid Email or Phone Number.");
   }
 
   // user doesnot exist already using email and phone number
 
-  const existing = User.findOne({
+  const existing = await User.findOne({
     $or: [{ email }, { phone_no }],
   });
   if (existing) {
@@ -46,7 +46,8 @@ const registerUser = asyncHandler(async (req, res) => {
 
   // check for avatar, upload on cloudinary
 
-  const avatarLocalPath = req.files?.avatar[0]?.path;
+  const avatarLocalPath = req.file?.path;
+
   if (!avatarLocalPath) {
     throw new ApiError(400, "Avatar is required.");
   }
