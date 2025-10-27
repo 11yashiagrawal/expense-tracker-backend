@@ -1,7 +1,7 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { User } from "../models/user.models.js";
-import { uploadOnCloudinary } from "../utils/cloudinary.js";
+import { uploadOnCloudinary, deleteFromCloudinary } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 
 const generateAccessAndRefreshTokens = async (userId) => {
@@ -300,6 +300,9 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
   if(!avatar.url){
     throw new ApiError(500, "Error while uploading to cloudinary.")
   }
+
+  const deleteURL = req.user?.avatar;
+  await deleteFromCloudinary(deleteURL);
 
   const user = await User.findByIdAndUpdate(
     req.user?._id,
