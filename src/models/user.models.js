@@ -43,7 +43,7 @@ const userSchema = new mongoose.Schema(
     },
     balance: {
       type: Number,
-      required: [true, "Balance is required."],
+      default: 0,
     },
     categories: {
       type: [
@@ -52,6 +52,7 @@ const userSchema = new mongoose.Schema(
           ref: "Category",
         },
       ],
+      default: []
     },
     refreshToken: {
       type: String,

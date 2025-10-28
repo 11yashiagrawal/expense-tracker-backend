@@ -1,8 +1,12 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { User } from "../models/user.models.js";
-import { uploadOnCloudinary, deleteFromCloudinary } from "../utils/cloudinary.js";
+import {
+  uploadOnCloudinary,
+  deleteFromCloudinary,
+} from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
+import { Category } from "../models/category.models.js";
 
 const generateAccessAndRefreshTokens = async (userId) => {
   try {
@@ -25,15 +29,8 @@ const generateAccessAndRefreshTokens = async (userId) => {
 const registerUser = asyncHandler(async (req, res) => {
   // get user details from frontend
 
-  const {
-    first_name,
-    last_name,
-    email,
-    password,
-    phone_no,
-    monthly_budget,
-    balance,
-  } = req.body;
+  const { first_name, last_name, email, password, phone_no, monthly_budget } =
+    req.body;
 
   // validation - required fields not empty
 
@@ -86,7 +83,6 @@ const registerUser = asyncHandler(async (req, res) => {
     password,
     phone_no,
     monthly_budget,
-    balance,
   });
 
   // check for user creation and remove refresh token, password
@@ -292,13 +288,13 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
   const avatarLocalPath = req.file?.path;
 
   if (!avatarLocalPath) {
-    throw new ApiError(400, "Avatar fle is required.");
+    throw new ApiError(400, "Avatar file is required.");
   }
 
- const avatar = await uploadOnCloudinary(avatarLocalPath);
+  const avatar = await uploadOnCloudinary(avatarLocalPath);
 
-  if(!avatar.url){
-    throw new ApiError(500, "Error while uploading to cloudinary.")
+  if (!avatar.url) {
+    throw new ApiError(500, "Error while uploading to cloudinary.");
   }
 
   const deleteURL = req.user?.avatar;
@@ -319,6 +315,151 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, user, "Avatar updated successfully."));
 });
 
+const addCategory = asyncHandler(async (req, res) => {
+  const { title, budget, colour } = req.body;
+
+  if (!title || !budget || !colour) {
+    throw new ApiError(400, "Missing field values.");
+  }
+
+  const iconLocalPath = req.file?.path;
+
+  if (!iconLocalPath) {
+    throw new ApiError(400, "Icon is required.");
+  }
+
+  const icon = await uploadOnCloudinary(iconLocalPath);
+
+  if (!icon.url) {
+    throw new ApiError(500, "Error while uploading to cloudinary.");
+  }
+
+  const category = await Category.create({
+    user: req.user?._id,
+    title,
+    budget,
+    icon: icon.url,
+    colour,
+  });
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, category, "Category created successfully."));
+});
+
+const listCategories = asyncHandler(async (req, res) => {
+  const categories = await Category.find({ user: req.user?._id });
+
+  if (!categories) {
+    throw new ApiError(500, "Something went wrong while fetching categories.");
+  }
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, categories, "Categories fetched successfully."));
+});
+
+const updateCategory = asyncHandler(async (req, res) => {
+  const { title, budget, colour } = req.body;
+  const id = req.params.id;
+
+  if (!id) {
+    throw new ApiError(400, "No category to update.");
+  }
+
+  if (!title && !budget && !colour) {
+    throw new ApiError(400, "No field to update.");
+  }
+
+  const category = await Category.findOneAndUpdate(
+    { user: req.user?._id, _id: id },
+    {
+      title,
+      budget,
+      colour,
+    },
+    {
+      new: true,
+    }
+  );
+
+  if (!category) {
+    throw new ApiError(500, "Something went wrong while updating category.");
+  }
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, category, "Category updated successfully."));
+});
+
+const updateCategoryIcon = asyncHandler(async (req, res) => {
+  const id = req.params.id;
+
+  if (!id) {
+    throw new ApiError(400, "No category to update.");
+  }
+
+  const iconLocalPath = req.file?.path;
+
+  if (!iconLocalPath) {
+    throw new ApiError(400, "Icon is required.");
+  }
+
+  const icon = await uploadOnCloudinary(iconLocalPath);
+
+  if (!icon.url) {
+    throw new ApiError(500, "Error while uploading to cloudinary.");
+  }
+
+  const deleteURL = await Category.findById(id);
+  await deleteFromCloudinary(deleteURL);
+
+  const category = await Category.findOneAndUpdate(
+    { _id: id, user: req.user?._id },
+    {
+      icon: icon.url,
+    },
+    { new: true }
+  );
+
+  if (!category) {
+    throw new ApiError(
+      500,
+      "Something went wrong while updating category icon."
+    );
+  }
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(200, category, "Category icon updated successfully.")
+    );
+});
+
+const deleteCategory = asyncHandler(async (req, res) => {
+  const id = req.params.id;
+
+  if (!id) {
+    throw new ApiError(400, "No category to delete.");
+  }
+
+  const category = await Category.findOneAndDelete({
+    _id: id,
+    user: req.user?._id,
+  });
+
+  if (!category) {
+    throw new ApiError(500, "Something went wrong while deleting category.");
+  }
+
+  const deleteURL=category.icon
+  await deleteFromCloudinary(deleteURL)
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, {}, "Category deleted successfully."));
+});
+
 export {
   registerUser,
   loginUser,
@@ -327,5 +468,10 @@ export {
   changeCurrentPassword,
   getCurrentUser,
   updateAccountDetails,
-  updateUserAvatar
+  updateUserAvatar,
+  addCategory,
+  listCategories,
+  updateCategory,
+  updateCategoryIcon,
+  deleteCategory
 };

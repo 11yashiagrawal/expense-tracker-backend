@@ -12,6 +12,11 @@ const categorySchema = new mongoose.Schema(
       required: [true, "Title is required."],
       trim: true,
     },
+    budget: {
+      type: Number,
+      required: [true, "Budget is required."],
+      default: 1000
+    },
     icon: {
       type: String,
       required: [true, "Icon is required."],
