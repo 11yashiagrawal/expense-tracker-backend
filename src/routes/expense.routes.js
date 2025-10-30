@@ -11,16 +11,16 @@ import { verifyJWT } from "../middlewares/auth.middleware.js";
 
 const router = Router();
 
-router.route("/addExpense").post(verifyJWT, addExpense);
+router.route("/").post(verifyJWT, addExpense);
 
-router.route("/getAllExpenses").get(verifyJWT, getAllExpenses);
+router.route("/").get(verifyJWT, getAllExpenses);
 
-router.route("/e/:startDate/:endDate").get(verifyJWT, getMonthExpenses);
+router.route("/:startDate/:endDate").get(verifyJWT, getMonthExpenses);
 
-router.route("/updateExpense/:id").patch(verifyJWT, updateExpense);
+router.route("/:id").patch(verifyJWT, updateExpense);
 
-router.route("/deleteExpense/:id").delete(verifyJWT, deleteExpense);
+router.route("/:id").delete(verifyJWT, deleteExpense);
 
-router.route("/expenseforCategories/:startDate/:endDate").get(verifyJWT, expenseforCategories);
+router.route("/per-category/:startDate/:endDate").get(verifyJWT, expenseforCategories);
 
 export default router;

@@ -29,8 +29,15 @@ const generateAccessAndRefreshTokens = async (userId) => {
 const registerUser = asyncHandler(async (req, res) => {
   // get user details from frontend
 
-  const { first_name, last_name, email, password, phone_no, monthly_budget } =
-    req.body;
+  const {
+    first_name,
+    last_name,
+    email,
+    password,
+    phone_no,
+    monthly_budget,
+    balance,
+  } = req.body;
 
   // validation - required fields not empty
 
@@ -83,6 +90,7 @@ const registerUser = asyncHandler(async (req, res) => {
     password,
     phone_no,
     monthly_budget,
+    balance,
   });
 
   // check for user creation and remove refresh token, password
@@ -99,7 +107,7 @@ const registerUser = asyncHandler(async (req, res) => {
 
   return res
     .status(201)
-    .json(new ApiResponse(200, createdUser, "User registered successfully."));
+    .json(new ApiResponse(201, createdUser, "User registered successfully."));
 });
 
 const loginUser = asyncHandler(async (req, res) => {
@@ -342,9 +350,23 @@ const addCategory = asyncHandler(async (req, res) => {
     colour,
   });
 
+  const user = await User.findByIdAndUpdate(
+    req.user?._id,
+    {
+      categories: [...req.user?.categories, category._id],
+    },
+    {
+      new: true,
+    }
+  );
+
+  if (!category || !user) {
+    throw new ApiError(500, "Something went wrong while creating category.");
+  }
+
   return res
-    .status(200)
-    .json(new ApiResponse(200, category, "Category created successfully."));
+    .status(201)
+    .json(new ApiResponse(201, category, "Category created successfully."));
 });
 
 const listCategories = asyncHandler(async (req, res) => {
@@ -448,12 +470,16 @@ const deleteCategory = asyncHandler(async (req, res) => {
     user: req.user?._id,
   });
 
-  if (!category) {
+  const user = await User.findByIdAndUpdate(req.user?._id, {
+    categories: req.user?.categories.map((cat) => cat != id),
+  });
+
+  if (!category || !user) {
     throw new ApiError(500, "Something went wrong while deleting category.");
   }
 
-  const deleteURL=category.icon
-  await deleteFromCloudinary(deleteURL)
+  const deleteURL = category.icon;
+  await deleteFromCloudinary(deleteURL);
 
   return res
     .status(200)
@@ -473,5 +499,5 @@ export {
   listCategories,
   updateCategory,
   updateCategoryIcon,
-  deleteCategory
+  deleteCategory,
 };

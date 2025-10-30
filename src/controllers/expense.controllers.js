@@ -57,8 +57,8 @@ const addExpense = asyncHandler(async (req, res) => {
   }
 
   return res
-    .status(200)
-    .json(new ApiResponse(200, expense, "Expense created successfully."));
+    .status(201)
+    .json(new ApiResponse(201, expense, "Expense created successfully."));
 });
 
 const getAllExpenses = asyncHandler(async (req, res) => {
@@ -69,6 +69,10 @@ const getAllExpenses = asyncHandler(async (req, res) => {
   const expenses = await Expense.find({
     user: req.user?._id,
   });
+
+  if (!expenses) {
+    throw new ApiError(500, "Something went wrong while fetching expenses.");
+  }
 
   return res
     .status(200)
@@ -107,12 +111,30 @@ const updateExpense = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Provide values to update.");
   }
 
+  const balance = req.user?.balance;
+
+  const am = await Expense.findById(id);
+
+  const newBalance = balance + am.amount - amount;
+
+  const user = await User.findByIdAndUpdate(
+    req.user?._id,
+    {
+      $set: {
+        balance: newBalance,
+      },
+    },
+    {
+      new: true,
+    }
+  ).select("-password -refreshToken");
+
   const expense = await Expense.findOneAndUpdate(
     { _id: id, user: req.user?._id },
     {
       title,
       amount,
-      date,
+      date: date ? new Date(date) : am.date,
       category,
     },
     { new: true }
@@ -123,12 +145,12 @@ const updateExpense = asyncHandler(async (req, res) => {
     {
       title,
       amount: amount * -1,
-      date,
+      date: date ? new Date(date) : am.date,
     },
     { new: true }
   );
 
-  if (!transaction || !expense) {
+  if (!transaction || !expense || !user) {
     throw new ApiError(500, "Something went wrong while updating expense.");
   }
 
@@ -144,18 +166,36 @@ const deleteExpense = asyncHandler(async (req, res) => {
     throw new ApiError(400, "No expense given to delete.");
   }
 
+  const balance = req.user?.balance;
+
+  const am = await Expense.findById(id);
+
+  const newBalance = balance + am.amount;
+
+  const user = await User.findByIdAndUpdate(
+    req.user?._id,
+    {
+      $set: {
+        balance: newBalance,
+      },
+    },
+    {
+      new: true,
+    }
+  ).select("-password -refreshToken");
+
   const expense = await Expense.findOneAndDelete({
     _id: id,
     user: req.user?._id,
   });
-//   console.log("expense:", expense)
+  //   console.log("expense:", expense)
   const transaction = await Transaction.findOneAndDelete({
     refId: id,
     user: req.user?._id,
     type: "Expense",
   });
-//   console.log("transaction:", transaction)
-  if (!expense || !transaction) {
+  //   console.log("transaction:", transaction)
+  if (!expense || !transaction || !user) {
     throw new ApiError(500, "Something went wrong while deleting expense.");
   }
 
@@ -165,15 +205,15 @@ const deleteExpense = asyncHandler(async (req, res) => {
 });
 
 const expenseforCategories = asyncHandler(async (req, res) => {
-    const {startDate, endDate}=req.params;
+  const { startDate, endDate } = req.params;
   const expenditures = await Expense.aggregate([
     {
       $match: {
         user: req.user?._id,
         date: {
-            $gte: new Date(startDate),
-            $lte: new Date(endDate)
-        }
+          $gte: new Date(startDate),
+          $lte: new Date(endDate),
+        },
       },
     },
     {
@@ -190,24 +230,24 @@ const expenseforCategories = asyncHandler(async (req, res) => {
       },
     },
     {
-        $lookup: {
-            from: "categories",
-            localField: "_id",
-            foreignField: "_id",
-            as: "categoryDetails"
-        }
+      $lookup: {
+        from: "categories",
+        localField: "_id",
+        foreignField: "_id",
+        as: "categoryDetails",
+      },
     },
     {
-        $unwind: "$categoryDetails"
+      $unwind: "$categoryDetails",
     },
     {
-        $project: {
-            _id: 0,
-            categoryId: "$_id",
-            categoryName: "$categoryDetails.title",
-            expenditure: 1
-        }
-    }
+      $project: {
+        _id: 0,
+        categoryId: "$_id",
+        categoryName: "$categoryDetails.title",
+        expenditure: 1,
+      },
+    },
   ]);
 
   if (!expenditures) {

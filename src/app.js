@@ -26,4 +26,10 @@ app.use("/api/v1/users", userRouter);
 import expenseRouter from "./routes/expense.routes.js";
 app.use("/api/v1/expenses", expenseRouter);
 
+import incomeRouter from "./routes/income.routes.js";
+app.use("/api/v1/income", incomeRouter);
+
+import subscriptionRouter from "./routes/subscription.routes.js";
+app.use("/api/v1/subscriptions", subscriptionRouter);
+
 export { app };

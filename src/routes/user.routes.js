@@ -27,28 +27,24 @@ router.route("/login").post(loginUser);
 
 router.route("/logout").post(verifyJWT, logoutUser);
 
-router.route("/refreshAccessToken").post(refreshAccessToken);
+router.route("/refresh-access-token").post(refreshAccessToken);
 
-router.route("/changePassword").post(verifyJWT, changeCurrentPassword);
+router.route("/change-password").post(verifyJWT, changeCurrentPassword);
 
-router.route("/currentUser").get(verifyJWT, getCurrentUser);
+router.route("/current-user").get(verifyJWT, getCurrentUser);
 
-router.route("/updateAccountDetails").patch(verifyJWT, updateAccountDetails);
+router.route("/account-details").patch(verifyJWT, updateAccountDetails);
 
-router.route("/updateAvatar").patch(verifyJWT, upload.single("avatar"), updateUserAvatar);
+router.route("/avatar").patch(verifyJWT, upload.single("avatar"), updateUserAvatar);
 
-router.route("/addCategory").post(verifyJWT, upload.single("icon"), addCategory);
+router.route("/categories").post(verifyJWT, upload.single("icon"), addCategory);
 
-router.route("/allCategories").get(verifyJWT, listCategories);
+router.route("/categories").get(verifyJWT, listCategories);
 
-router.route("/updateCategory/:id").patch(verifyJWT, updateCategory);
+router.route("/categories/:id").patch(verifyJWT, updateCategory);
 
-router.route("/updateCategoryIcon/:id").patch(verifyJWT, upload.single("icon"), updateCategoryIcon);
+router.route("/categories-icon/:id").patch(verifyJWT, upload.single("icon"), updateCategoryIcon);
 
-router.route("/deleteCategory/:id").delete(verifyJWT, deleteCategory);
-
-router
-  .route("/updateAvatar")
-  .patch(verifyJWT, upload.single("avatar"), updateUserAvatar);
+router.route("/categories/:id").delete(verifyJWT, deleteCategory);
 
 export default router;
