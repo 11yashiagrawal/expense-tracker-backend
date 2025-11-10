@@ -1,4 +1,5 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
+import mongoose from "mongoose";
 import { ApiError } from "../utils/ApiError.js";
 import { User } from "../models/user.models.js";
 import {
@@ -342,26 +343,41 @@ const addCategory = asyncHandler(async (req, res) => {
     throw new ApiError(500, "Error while uploading to cloudinary.");
   }
 
-  const category = await Category.create({
-    user: req.user?._id,
-    title,
-    budget,
-    icon: icon.url,
-    colour,
-  });
+  const session = await mongoose.startSession();
 
-  const user = await User.findByIdAndUpdate(
-    req.user?._id,
-    {
-      categories: [...req.user?.categories, category._id],
-    },
-    {
-      new: true,
-    }
-  );
+  let category = {};
 
-  if (!category || !user) {
+  try {
+    await session.withTransaction(async () => {
+      category = await Category.create(
+        [
+          {
+            user: req.user?._id,
+            title,
+            budget,
+            icon: icon.url,
+            colour,
+          },
+        ],
+        { session }
+      );
+
+      const user = await User.findByIdAndUpdate(
+        req.user?._id,
+        {
+          categories: [...req.user?.categories, category._id],
+        },
+        {
+          new: true,
+          session,
+        }
+      );
+    });
+  } catch (error) {
+    deleteFromCloudinary(icon.url);
     throw new ApiError(500, "Something went wrong while creating category.");
+  } finally {
+    session.endSession();
   }
 
   return res
@@ -465,17 +481,34 @@ const deleteCategory = asyncHandler(async (req, res) => {
     throw new ApiError(400, "No category to delete.");
   }
 
-  const category = await Category.findOneAndDelete({
-    _id: id,
-    user: req.user?._id,
-  });
+  const session = await mongoose.startSession();
 
-  const user = await User.findByIdAndUpdate(req.user?._id, {
-    categories: req.user?.categories.map((cat) => cat != id),
-  });
+  let category = {};
 
-  if (!category || !user) {
+  try {
+    await session.withTransaction(async () => {
+      category = await Category.findOneAndDelete(
+        {
+          _id: id,
+          user: req.user?._id,
+        },
+        { session }
+      );
+
+      const user = await User.findByIdAndUpdate(
+        req.user?._id,
+        {
+          categories: req.user?.categories.filter(
+            (cat) => cat.toString() !== id.toString()
+          ),
+        },
+        { session }
+      );
+    });
+  } catch (error) {
     throw new ApiError(500, "Something went wrong while deleting category.");
+  } finally {
+    session.endSession();
   }
 
   const deleteURL = category.icon;

@@ -32,4 +32,7 @@ app.use("/api/v1/income", incomeRouter);
 import subscriptionRouter from "./routes/subscription.routes.js";
 app.use("/api/v1/subscriptions", subscriptionRouter);
 
+import transactionRouter from "./routes/transaction.routes.js";
+app.use("/api/v1/transactions", transactionRouter);
+
 export { app };

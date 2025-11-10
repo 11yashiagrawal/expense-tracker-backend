@@ -4,6 +4,7 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 import { Income } from "../models/income.models.js";
 import { Transaction } from "../models/transactions.models.js";
 import { User } from "../models/user.models.js";
+import mongoose from "mongoose";
 
 const addIncome = asyncHandler(async (req, res) => {
   const { title, amount, date } = req.body;
@@ -12,40 +13,59 @@ const addIncome = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Missing field values.");
   }
 
-  const income = await Income.create({
-    user: req.user?._id,
-    title,
-    amount,
-    date: new Date(date),
-  });
+  const session = await mongoose.startSession();
 
-  const transaction = await Transaction.create({
-    user: req.user?._id,
-    title,
-    amount,
-    date: new Date(date),
-    type: "Income",
-    refId: income._id,
-  });
+  let income = {};
 
-  const balance = req.user?.balance;
+  try {
+    await session.withTransaction(async () => {
+      income = await Income.create(
+        [
+          {
+            user: req.user?._id,
+            title,
+            amount,
+            date: new Date(date),
+          },
+        ],
+        { session }
+      );
 
-  const newBalance = balance + amount;
+      const transaction = await Transaction.create(
+        [
+          {
+            user: req.user?._id,
+            title,
+            amount,
+            date: new Date(date),
+            type: "Income",
+            refId: income[0]._id,
+          },
+        ],
+        { session }
+      );
 
-  const user = await User.findByIdAndUpdate(
-    req.user?._id,
-    {
-      $set: {
-        balance: newBalance,
-      },
-    },
-    {
-      new: true,
-    }
-  ).select("-password -refreshToken");
+      const balance = req.user?.balance;
 
-  if (!income || !transaction || !user) {
+      const newBalance = balance + amount;
+
+      const user = await User.findByIdAndUpdate(
+        req.user?._id,
+        {
+          $set: {
+            balance: newBalance,
+          },
+        },
+        {
+          new: true,
+          session,
+        }
+      ).select("-password -refreshToken");
+    });
+  } catch (error) {
     throw new ApiError(500, "Something went wrong while creating income.");
+  } finally {
+    session.endSession();
   }
 
   return res
@@ -80,9 +100,13 @@ const getMonthIncomes = asyncHandler(async (req, res) => {
     },
   });
 
+  const total = incomes.reduce((acc, income)=>{
+    return acc+income.amount
+  }, 0)
+
   return res
     .status(200)
-    .json(new ApiResponse(200, incomes, "Incomes fetched successfully."));
+    .json(new ApiResponse(200, {incomes, total}, "Incomes fetched successfully."));
 });
 
 const updateIncome = asyncHandler(async (req, res) => {
@@ -97,48 +121,59 @@ const updateIncome = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Provide values to update.");
   }
 
-  const balance = req.user?.balance;
+  const session = await mongoose.startSession();
 
-  const am = await Income.findById(id);
+  let income = {};
 
-  const newBalance = balance - am.amount + amount;
+  try {
+    await session.withTransaction(async () => {
+      const balance = req.user?.balance;
 
-  const user = await User.findByIdAndUpdate(
-    req.user?._id,
-    {
-      $set: {
-        balance: newBalance,
-      },
-    },
-    {
-      new: true,
-    }
-  ).select("-password -refreshToken");
-
-  const income = await Income.findOneAndUpdate(
-    { _id: id, user: req.user?._id },
-    {
-      title,
-      amount,
-      date: date ? new Date(date) : am.date,
-    },
-    {
-      new: true,
-    }
-  );
-
-  const transaction = await Transaction.findOneAndUpdate(
-    { refId: id, user: req.user?._id, type: "Income" },
-    {
-      title,
-      amount,
-      date: date ? new Date(date) : am.date,
-    },
-    { new: true }
-  );
-
-  if (!income || !transaction || !user) {
+      const am = await Income.findById(id, null, { session });
+      // console.log('am', am)
+      const newBalance = balance - am.amount + amount;
+      // console.log('new balance', newBalance)
+      const user = await User.findByIdAndUpdate(
+        req.user?._id,
+        {
+          $set: {
+            balance: newBalance,
+          },
+        },
+        {
+          new: true,
+          session,
+        }
+      ).select("-password -refreshToken");
+      // console.log('user', user)
+      income = await Income.findOneAndUpdate(
+        { _id: id, user: req.user?._id },
+        {
+          title,
+          amount,
+          date: date ? new Date(date) : am.date,
+        },
+        {
+          new: true,
+          session,
+        }
+      );
+      // console.log('income', income)
+      const transaction = await Transaction.findOneAndUpdate(
+        { refId: id, user: req.user?._id, type: "Income" },
+        {
+          title,
+          amount,
+          date: date ? new Date(date) : am.date,
+        },
+        { new: true, session }
+      );
+      // console.log('transaction', transaction)
+    });
+  } catch (error) {
     throw new ApiError(500, "Something went wrong while updating income.");
+  } finally {
+    session.endSession();
   }
 
   return res
@@ -153,38 +188,52 @@ const deleteIncome = asyncHandler(async (req, res) => {
     throw new ApiError(400, "No income given to delete.");
   }
 
-  const balance = req.user?.balance;
+  const session = await mongoose.startSession();
 
-  const am = await Income.findById(id);
-  // console.log(am);
+  try {
+    await session.withTransaction(async () => {
+      const balance = req.user?.balance;
 
-  const newBalance = balance - am.amount;
+      const am = await Income.findById(id, null, { session });
+      // console.log(am);
 
-  const user = await User.findByIdAndUpdate(
-    req.user?._id,
-    {
-      $set: {
-        balance: newBalance,
-      },
-    },
-    {
-      new: true,
-    }
-  ).select("-password -refreshToken");
+      const newBalance = balance - am.amount;
 
-  const income = await Income.findOneAndDelete({
-    _id: id,
-    user: req.user?._id,
-  });
-  //   console.log("expense:", expense)
-  const transaction = await Transaction.findOneAndDelete({
-    refId: id,
-    user: req.user?._id,
-    type: "Income",
-  });
-  //   console.log("transaction:", transaction)
-  if (!income || !transaction || !user) {
+      const user = await User.findByIdAndUpdate(
+        req.user?._id,
+        {
+          $set: {
+            balance: newBalance,
+          },
+        },
+        {
+          new: true,
+          session,
+        }
+      ).select("-password -refreshToken");
+
+      const income = await Income.findOneAndDelete(
+        {
+          _id: id,
+          user: req.user?._id,
+        },
+        { session }
+      );
+      //   console.log("expense:", expense)
+      const transaction = await Transaction.findOneAndDelete(
+        {
+          refId: id,
+          user: req.user?._id,
+          type: "Income",
+        },
+        { session }
+      );
+      //   console.log("transaction:", transaction)
+    });
+  } catch (error) {
     throw new ApiError(500, "Something went wrong while deleting income.");
+  } finally {
+    session.endSession();
   }
 
   return res

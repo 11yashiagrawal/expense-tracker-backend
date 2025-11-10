@@ -2,17 +2,24 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { Subscription } from "../models/subscription.models.js";
-import { Transaction } from "../models/transactions.models.js";
-import { User } from "../models/user.models.js";
 
 const addSubscription = asyncHandler(async (req, res) => {
-  const { title, frequency, startDate, endDate, amount } = req.body;
+  const {
+    title,
+    frequency,
+    startDate,
+    endDate,
+    nextPaymentDate,
+    amount,
+    active,
+  } = req.body;
 
   if (
     !title.trim() ||
     !frequency.trim() ||
     !startDate ||
     !endDate ||
+    !nextPaymentDate ||
     !amount
   ) {
     throw new ApiError(400, "All fiels are required.");
@@ -24,7 +31,9 @@ const addSubscription = asyncHandler(async (req, res) => {
     frequency,
     startDate: new Date(startDate),
     endDate: new Date(endDate),
+    nextPaymentDate: new Date(nextPaymentDate),
     amount,
+    active,
   });
 
   if (!subscription) {
@@ -65,13 +74,22 @@ const updateSubscription = asyncHandler(async (req, res) => {
     throw new ApiError(400, "No subscription to update.");
   }
 
-  const { title, frequency, startDate, endDate, amount } = req.body;
+  const {
+    title,
+    frequency,
+    startDate,
+    endDate,
+    nextPaymentDate,
+    amount,
+    active,
+  } = req.body;
 
   if (
     !title &&
     !frequency &&
     !startDate &&
     !endDate &&
+    !nextPaymentDate &&
     !amount
   ) {
     throw new ApiError(400, "Provide fields to update.");
@@ -86,7 +104,11 @@ const updateSubscription = asyncHandler(async (req, res) => {
       frequency,
       startDate: startDate ? new Date(startDate) : old.startDate,
       endDate: endDate ? new Date(endDate) : old.endDate,
+      nextPaymentDate: nextPaymentDate
+        ? new Date(nextPaymentDate)
+        : old.nextPaymentDate,
       amount,
+      active,
     },
     { new: true }
   );
@@ -126,9 +148,38 @@ const deleteSubscription = asyncHandler(async (req, res) => {
 
   return res
     .status(200)
-    .json(
-      new ApiResponse(200, subscription, "Subscription deleted successfully.")
-    );
+    .json(new ApiResponse(200, "Subscription deleted successfully."));
+});
+
+const paymentsThisMonth = asyncHandler(async (req, res) => {
+  const { startDate, endDate } = req.params;
+  const subscriptions = await Subscription.aggregate([
+    {
+      $match: {
+        user: req.user?._id,
+        active: true,
+        nextPaymentDate: {
+          $gte: new Date(startDate),
+          $lte: new Date(endDate),
+        },
+      },
+    },
+    {
+      $project: {
+        title: 1,
+        amount: 1,
+        nextPaymentDate: 1,
+      },
+    },
+  ]);
+  if(!subscriptions){
+    throw new ApiError(500, "Something went wrong while fetching subscriptions.")
+  }
+  const total=subscriptions.reduce((acc, sub)=>{
+    return acc+sub.amount
+  }, 0)
+
+  return res.status(200).json(new ApiResponse(200, {subscriptions, total}, "Subscriptions for this month fetched successfully."))
 });
 
 export {
@@ -136,4 +187,5 @@ export {
   getAllSubscriptions,
   updateSubscription,
   deleteSubscription,
+  paymentsThisMonth
 };

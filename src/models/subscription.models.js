@@ -26,13 +26,21 @@ const subscriptionSchema = new mongoose.Schema(
     endDate: {
       type: Date,
       required: [true, "End Date of subscription is required."],
-      default: NaN,
+    },
+    nextPaymentDate: {
+      type: Date,
+      required: true
     },
     amount: {
       type: Number,
       required: [true, "Amount is required."],
       default: 0,
     },
+    active: {
+      type: Boolean,
+      required: true,
+      default: true
+    }
   },
   { timestamps: true }
 );
