@@ -95,4 +95,8 @@ const processSubscriptions = async () => {
   }
 };
 
-export { processSubscriptions };
+export const startSubscriptionPayments = () => {
+  processSubscriptions();
+  const one_day = 24 * 60 * 60 * 1000;
+  setInterval(processSubscriptions, one_day);
+};
