@@ -41,16 +41,16 @@ const processSubscriptions = async () => {
       console.log(`Skipped subscription ${sub.title} due to no user.`);
       continue;
     }
-    
+
     if (!sub.active) {
       continue;
     }
-    
+
     const nextPayment = new Date(sub.nextPaymentDate);
     if (nextPayment.toDateString() != today.toDateString()) {
       continue;
     }
-    
+
     if (user.balance < sub.amount) {
       console.log(`Insufficient Balance for ${user.first_name} - ${sub.title}`);
       sub.active = false;
@@ -77,10 +77,10 @@ const processSubscriptions = async () => {
           { session }
         );
         // console.log('transaction', transaction)
-        const nextPaymentDate=getNextDate(today, sub.frequency);
-        if(sub.endDate<nextPaymentDate){
-          sub.active=false
-        }else{
+        const nextPaymentDate = getNextDate(today, sub.frequency);
+        if (sub.endDate < nextPaymentDate) {
+          sub.active = false;
+        } else {
           sub.nextPaymentDate = nextPaymentDate;
         }
         // console.log('next payment date', sub.nextPaymentDate)
@@ -95,8 +95,4 @@ const processSubscriptions = async () => {
   }
 };
 
-export const startSubscriptionPayments = () => {
-  processSubscriptions();
-  const one_day = 24 * 60 * 60 * 1000;
-  setInterval(processSubscriptions, one_day);
-};
+export { processSubscriptions };

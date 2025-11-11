@@ -1,7 +1,6 @@
 import dotenv from "dotenv";
 import connectDB from "./db/index.js";
 import { app } from "./app.js";
-import { startSubscriptionPayments } from "./utils/subscriptionPayment.js";
 
 dotenv.config({
   path: "./env",
@@ -15,7 +14,6 @@ connectDB()
       console.log("ERRR: ", error);
       throw error;
     });
-    startSubscriptionPayments();
     app.listen(port, () => {
       console.log(`Server is listening on port: ${port}`);
     });
