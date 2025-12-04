@@ -14,8 +14,9 @@ const addExpense = asyncHandler(async (req, res) => {
     throw new ApiError(400, "All fields are required.");
   }
 
-  const cat = await Category.findOne({ user: req.user?._id, title: category });
-
+  const cat = await Category.findOne({ user: req.user?._id, _id: category });
+  console.log(cat, "cat")
+  console.log(category, "category")
   if (!cat) {
     throw new ApiError(400, "Invalid category name.");
   }
@@ -300,6 +301,7 @@ const expenseforCategories = asyncHandler(async (req, res) => {
         categoryId: "$_id",
         categoryName: "$categoryDetails.title",
         expenditure: 1,
+        icon: "$categoryDetails.icon",
         budget: "$categoryDetails.budget",
         colour: "$categoryDetails.colour"
       },
