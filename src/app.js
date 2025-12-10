@@ -11,6 +11,7 @@ app.use(
     origin: function (origin, callback) {
       if (!origin) return callback(null, true); // allow requests without origin
       if (allowedOrigins.includes(origin)) return callback(null, true);
+      console.log("Origin not allowed: ", origin);
       return callback(new Error("Not allowed by CORS"));
     },
     credentials: true,
