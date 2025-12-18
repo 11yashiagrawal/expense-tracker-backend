@@ -212,11 +212,11 @@ const deleteExpense = asyncHandler(async (req, res) => {
   try {
     await session.withTransaction(async () => {
       const balance = req.user?.balance;
-
+      // console.log("balance:", balance)
       const am = await Expense.findById(id, null, { session });
-
+      console.log("am:", am)
       const newBalance = balance + am.amount;
-
+      console.log("new balance:", newBalance)
       const user = await User.findByIdAndUpdate(
         req.user?._id,
         {
@@ -229,7 +229,7 @@ const deleteExpense = asyncHandler(async (req, res) => {
           session,
         }
       ).select("-password -refreshToken");
-
+      console.log(user)
       const expense = await Expense.findOneAndDelete(
         {
           _id: id,
@@ -237,7 +237,7 @@ const deleteExpense = asyncHandler(async (req, res) => {
         },
         { session }
       );
-      //   console.log("expense:", expense)
+        console.log("expense:", expense)
       const transaction = await Transaction.findOneAndDelete(
         {
           refId: id,
@@ -246,7 +246,7 @@ const deleteExpense = asyncHandler(async (req, res) => {
         },
         { session }
       );
-      //   console.log("transaction:", transaction)
+        console.log("transaction:", transaction)
     });
   } catch (error) {
     throw new ApiError(500, "Something went wrong while deleting expense.");
@@ -326,6 +326,68 @@ const expenseforCategories = asyncHandler(async (req, res) => {
     );
 });
 
+const categoryExpense = asyncHandler(async (req, res) => {
+  const { category, startDate, endDate } = req.params;
+  const expenditure = await Expense.aggregate([
+    {
+      $match: {
+        user: req.user?._id,
+        date: {
+          $gte: new Date(startDate),
+          $lte: new Date(endDate),
+        },
+        category: new mongoose.Types.ObjectId(category),
+      }
+    },
+    {
+      $group: {
+        _id: "$category",
+        expenditure: {
+          $sum: "$amount",
+        },
+      },
+    },
+    {
+      $lookup: {
+        from: "categories",
+        localField: "_id",
+        foreignField: "_id",
+        as: "categoryDetails",
+      },
+    },
+    {
+      $unwind: "$categoryDetails",
+    },
+    {
+      $project: {
+        _id: 0,
+        categoryId: "$_id",
+        categoryName: "$categoryDetails.title",
+        expenditure: 1,
+        icon: "$categoryDetails.icon",
+        budget: "$categoryDetails.budget",
+        colour: "$categoryDetails.colour"
+      },
+    },
+  ])
+
+  if(!expenditure){
+    throw new ApiError(500, "Something went wrong while fetching expenditures.")
+  }
+
+  // console.log(expenditure)
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        expenditure[0],
+        "Category expenditure fetched successfully."
+      )
+    );
+})
+
 export {
   addExpense,
   getAllExpenses,
@@ -333,4 +395,5 @@ export {
   updateExpense,
   deleteExpense,
   expenseforCategories,
+  categoryExpense
 };

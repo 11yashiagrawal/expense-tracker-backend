@@ -6,44 +6,55 @@ import { Transaction } from "../models/transactions.models.js";
 const getTransactions = asyncHandler(async (req, res) => {
   const transactions = await Transaction.aggregate([
     {
-      $match: { 
-        user:  req.user?._id
-      }
+      $match: {
+        user: req.user?._id,
+      },
     },
     {
       $lookup: {
         from: "expenses",
         localField: "refId",
         foreignField: "_id",
-        as: "expense"
-      }
+        as: "expense",
+      },
     },
     {
-      $unwind: "$expense"
+      $unwind: {
+        path: "$expense",
+        preserveNullAndEmptyArrays: true,
+      },
     },
-  {
-    $lookup: {
-      from: "categories",
-      localField: "expense.category",
-      foreignField: "_id",
-      as: "cat"
-    }
-  },
-  {
-    $unwind: "$cat"
-  },
-  {
-    $project: {
-      user: 1,
-      title: 1,
-      amount: 1,
-      date: 1,
-      type: 1,
-      category_title: "$cat.title",
-      category_icon: "$cat.icon",
-      category_colour: "$cat.colour"
-    }
-  }
+    {
+      $lookup: {
+        from: "categories",
+        localField: "expense.category",
+        foreignField: "_id",
+        as: "cat",
+      },
+    },
+    {
+      $unwind: {
+        path: "$cat",
+        preserveNullAndEmptyArrays: true,
+      },
+    },
+    {
+      $project: {
+        user: 1,
+        title: 1,
+        amount: 1,
+        date: 1,
+        type: 1,
+        category_title: "$cat.title",
+        category_icon: "$cat.icon",
+        category_colour: "$cat.colour",
+      },
+    },
+    {
+      $sort: {
+        date: -1,
+      },
+    },
   ]);
 
   if (!transactions) {

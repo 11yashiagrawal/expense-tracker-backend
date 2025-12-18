@@ -6,6 +6,7 @@ import {
   updateExpense,
   deleteExpense,
   expenseforCategories,
+  categoryExpense,
 } from "../controllers/expense.controllers.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 
@@ -22,5 +23,7 @@ router.route("/:id").patch(verifyJWT, updateExpense);
 router.route("/:id").delete(verifyJWT, deleteExpense);
 
 router.route("/per-category/:startDate/:endDate").get(verifyJWT, expenseforCategories);
+
+router.route("/:category/:startDate/:endDate").get(verifyJWT, categoryExpense);
 
 export default router;
