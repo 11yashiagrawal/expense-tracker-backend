@@ -501,13 +501,14 @@ const deleteCategory = asyncHandler(async (req, res) => {
         req.user?._id,
         {
           categories: req.user?.categories.filter(
-            (cat) => cat.toString() !== id.toString()
+            (cat) => {console.log(cat);return cat != id}
           ),
         },
         { session }
       );
     });
   } catch (error) {
+    console.log(error)
     throw new ApiError(500, "Something went wrong while deleting category.");
   } finally {
     session.endSession();
